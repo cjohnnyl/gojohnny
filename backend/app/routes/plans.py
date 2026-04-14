@@ -1,7 +1,9 @@
 import json
 from datetime import date, timedelta
 
+import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
@@ -48,7 +50,16 @@ def generate_plan(
         existing.status = "superseded"
 
     # Chama Claude Sonnet para gerar a planilha
-    raw, tokens = ai.generate_training_plan(profile)
+    try:
+        raw, tokens = ai.generate_training_plan(profile)
+    except anthropic.BadRequestError as e:
+        logger.error(f"Anthropic BadRequest: {e}")
+        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                            detail="Saldo insuficiente na conta Anthropic. Adicione créditos em console.anthropic.com.")
+    except anthropic.APIError as e:
+        logger.error(f"Anthropic API error: {e}")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
+                            detail="Erro ao se comunicar com o modelo de IA. Tente novamente.")
 
     try:
         plan_data = json.loads(raw)

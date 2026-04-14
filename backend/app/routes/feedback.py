@@ -1,6 +1,8 @@
 import json
 
+import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
@@ -22,23 +24,25 @@ def submit_feedback(
     profile = current_user.profile
 
     # Analisa feedback com Claude
-    raw, _ = ai.analyze_feedback(
-        profile=profile,
-        effort=body.effort_rating,
-        pain=body.pain_level,
-        sleep=body.sleep_quality,
-        feeling=body.general_feeling,
-        notes=body.notes,
-    )
-
     analysis = None
     recommendation = None
     try:
-        parsed = json.loads(raw)
-        analysis = parsed.get("analise")
-        recommendation = parsed.get("recomendacao")
-    except json.JSONDecodeError:
-        analysis = raw  # salva o texto bruto se o JSON falhar
+        raw, _ = ai.analyze_feedback(
+            profile=profile,
+            effort=body.effort_rating,
+            pain=body.pain_level,
+            sleep=body.sleep_quality,
+            feeling=body.general_feeling,
+            notes=body.notes,
+        )
+        try:
+            parsed = json.loads(raw)
+            analysis = parsed.get("analise")
+            recommendation = parsed.get("recomendacao")
+        except json.JSONDecodeError:
+            analysis = raw
+    except (anthropic.BadRequestError, anthropic.APIError) as e:
+        logger.warning(f"Anthropic indisponível ao analisar feedback: {e}. Salvando sem análise.")
 
     feedback = TrainingFeedback(
         user_id=current_user.id,

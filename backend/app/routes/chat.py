@@ -1,5 +1,7 @@
 from typing import Optional
+import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
@@ -61,7 +63,16 @@ def send_message(
 
     # Chama Claude
     profile = current_user.profile
-    reply, tokens = ai.chat(history_messages, profile=profile)
+    try:
+        reply, tokens = ai.chat(history_messages, profile=profile)
+    except anthropic.BadRequestError as e:
+        logger.error(f"Anthropic BadRequest: {e}")
+        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                            detail="Saldo insuficiente na conta Anthropic. Adicione créditos em console.anthropic.com.")
+    except anthropic.APIError as e:
+        logger.error(f"Anthropic API error: {e}")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
+                            detail="Erro ao se comunicar com o modelo de IA. Tente novamente.")
 
     # Persiste resposta do assistente
     assistant_msg = Message(
