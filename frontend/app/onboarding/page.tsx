@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
@@ -24,6 +24,13 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // BUG-05: protege a rota contra acesso sem autenticação.
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("access_token")) {
+      router.push("/login");
+    }
+  }, [router]);
+
   const [form, setForm] = useState({
     name: "",
     level: "",
@@ -43,6 +50,16 @@ export default function OnboardingPage() {
   }
 
   async function handleFinish() {
+    // BUG-03: valida campos obrigatórios antes de chamar a API.
+    if (!form.name || !form.level) {
+      setError(
+        !form.name
+          ? "Por favor, informe seu nome antes de continuar."
+          : "Por favor, selecione seu nível como corredor antes de continuar."
+      );
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -271,7 +288,13 @@ export default function OnboardingPage() {
             {step < totalSteps ? (
               <button
                 onClick={() => setStep((s) => s + 1)}
-                disabled={!form.name || !form.level}
+                disabled={
+                  step === 1
+                    ? !form.name || !form.level
+                    : step === 2
+                    ? !form.main_goal
+                    : false
+                }
                 className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg transition-colors"
               >
                 Continuar

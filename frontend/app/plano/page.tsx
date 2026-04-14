@@ -39,16 +39,29 @@ export default function PlanoPage() {
     try {
       const data = await api.getCurrentPlan();
       setPlan(data as Plan);
-    } catch {
+    } catch (err: unknown) {
+      // 404 significa sem plano — estado vazio esperado
+      // outros erros (401 etc.) limpam o estado mas não redirecionam aqui;
+      // o middleware de autenticação no api.ts já lança o erro com a mensagem do backend
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("not authenticated") || msg.toLowerCase().includes("unauthorized")) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        router.push("/login");
+        return;
+      }
       setPlan(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    if (!token) { router.push("/login"); return; }
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     loadPlan();
   }, [router, loadPlan]);
 

@@ -22,23 +22,30 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<number | undefined>();
-  const [profile, setProfile] = useState<{ name: string } | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const conversationIdRef = useRef<number | undefined>(undefined);
+  const sendingRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
-    if (!token) { router.push("/login"); return; }
+    if (!token) {
+      router.push("/login");
+      return;
+    }
 
-    api.getProfile()
+    api
+      .getProfile()
       .then((p: unknown) => {
         const prof = p as { name: string };
-        setProfile(prof);
-        setMessages([{
-          role: "assistant",
-          content: `Olá, ${prof.name}! Sou o GoJohnny, seu treinador digital de corrida. Como posso te ajudar hoje?`,
-        }]);
+        setProfileLoaded(true);
+        setMessages([
+          {
+            role: "assistant",
+            content: `Olá, ${prof.name}! Sou o GoJohnny, seu treinador digital de corrida. Como posso te ajudar hoje?`,
+          },
+        ]);
       })
       .catch(() => router.push("/onboarding"));
   }, [router]);
@@ -48,32 +55,46 @@ export default function ChatPage() {
   }, [messages]);
 
   const send = useCallback(async (text: string) => {
-    if (!text.trim() || loading) return;
+    if (!text.trim() || sendingRef.current) return;
+
     const content = text.trim();
+    sendingRef.current = true;
     setInput("");
-    setMessages((m) => [...m, { role: "user", content }, { role: "assistant", content: "", pending: true }]);
+    setMessages((m) => [
+      ...m,
+      { role: "user", content },
+      { role: "assistant", content: "", pending: true },
+    ]);
     setLoading(true);
 
     try {
-      const data = await api.sendMessage(content, conversationId);
-      setConversationId(data.conversation_id);
+      const data = await api.sendMessage(content, conversationIdRef.current);
+      conversationIdRef.current = data.conversation_id;
       setMessages((m) => {
         const updated = [...m];
-        updated[updated.length - 1] = { role: "assistant", content: data.content };
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: data.content,
+        };
         return updated;
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro ao enviar mensagem";
+      const msg =
+        err instanceof Error ? err.message : "Erro ao enviar mensagem";
       setMessages((m) => {
         const updated = [...m];
-        updated[updated.length - 1] = { role: "assistant", content: `Erro: ${msg}` };
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: `Erro: ${msg}`,
+        };
         return updated;
       });
     } finally {
+      sendingRef.current = false;
       setLoading(false);
       inputRef.current?.focus();
     }
-  }, [loading, conversationId]);
+  }, []);
 
   function handleKey(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -87,15 +108,24 @@ export default function ChatPage() {
     router.push("/login");
   }
 
+  // Quick actions aparecem apenas quando o perfil carregou e só há a mensagem de boas-vindas
+  const showQuickActions = profileLoaded && messages.length === 1;
+
   return (
     <div className="flex flex-col h-screen bg-zinc-950">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm">G</div>
+          <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm">
+            G
+          </div>
           <div>
-            <p className="text-white font-semibold text-sm leading-none">GoJohnny</p>
-            <p className="text-zinc-500 text-xs">Treinador digital de corrida</p>
+            <p className="text-white font-semibold text-sm leading-none">
+              GoJohnny
+            </p>
+            <p className="text-zinc-500 text-xs">
+              Treinador digital de corrida
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -117,9 +147,14 @@ export default function ChatPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div
+            key={i}
+            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+          >
             {m.role === "assistant" && (
-              <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold mr-2 flex-shrink-0 mt-0.5">G</div>
+              <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
+                G
+              </div>
             )}
             <div
               className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
@@ -134,21 +169,24 @@ export default function ChatPage() {
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:150ms]" />
                   <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:300ms]" />
                 </span>
-              ) : m.content}
+              ) : (
+                m.content
+              )}
             </div>
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick actions — aparece só no início */}
-      {messages.length <= 1 && (
+      {/* Quick actions — aparece só após o perfil carregar e apenas com a mensagem inicial */}
+      {showQuickActions && (
         <div className="px-4 pb-2 flex flex-wrap gap-2 justify-center">
           {QUICK_ACTIONS.map((a) => (
             <button
               key={a}
               onClick={() => send(a)}
-              className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 transition-colors"
+              disabled={loading}
+              className="text-xs bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 transition-colors"
             >
               {a}
             </button>
@@ -173,10 +211,21 @@ export default function ChatPage() {
           <button
             onClick={() => send(input)}
             disabled={!input.trim() || loading}
+            aria-label="Enviar mensagem"
             className="self-end w-8 h-8 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-30 flex items-center justify-center transition-colors flex-shrink-0"
           >
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            <svg
+              className="w-4 h-4 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+              />
             </svg>
           </button>
         </div>

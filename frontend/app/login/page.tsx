@@ -15,23 +15,32 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    // BUG-01: autenticação e verificação de perfil em blocos separados.
+    // Erros de rede no getProfile não devem exibir mensagem de autenticação.
+    let authenticated = false;
     try {
       const fn = tab === "login" ? api.login : api.register;
       const data = await fn(email, password);
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("refresh_token", data.refresh_token);
+      authenticated = true;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro ao autenticar");
+      setLoading(false);
+      return;
+    }
 
-      // Verifica se já tem perfil
+    if (authenticated) {
+      // Verificação de perfil: qualquer falha (inclusive erro de rede) redireciona
+      // para /onboarding — nunca exibe mensagem de erro de autenticação.
       try {
         await api.getProfile();
         router.push("/chat");
       } catch {
         router.push("/onboarding");
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao autenticar");
-    } finally {
-      setLoading(false);
+      // Não chama setLoading(false) aqui: o redirect vai desmontar o componente.
     }
   }
 
