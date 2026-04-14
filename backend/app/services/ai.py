@@ -1,14 +1,14 @@
-"""Integração com Claude API — coração do GoJohnny."""
+"""Integração com OpenAI GPT — coração do GoJohnny."""
 from typing import Optional
 
-import anthropic
+from openai import OpenAI
 from loguru import logger
 
 from ..core.config import get_settings
 from ..models.runner_profile import RunnerProfile
 
 settings = get_settings()
-_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+_client = OpenAI(api_key=settings.openai_api_key)
 
 # System prompt base — define identidade, tom e guardrails do GoJohnny
 _SYSTEM_BASE = """Você é o GoJohnny, um treinador digital especialista em corrida de rua.
@@ -40,7 +40,6 @@ def _build_context_block(profile: Optional[RunnerProfile]) -> str:
         return "\nO corredor ainda não preencheu o perfil. Quando relevante, pergunte sobre nível, objetivo, disponibilidade e histórico de lesões antes de recomendar algo mais sensível.\n"
 
     lines = ["\n--- CONTEXTO DO CORREDOR ---"]
-
     lines.append(f"Nome: {profile.name}")
     lines.append(f"Nível: {profile.level}")
 
@@ -79,47 +78,46 @@ def chat(
     model: Optional[str] = None,
 ) -> tuple[str, int]:
     """
-    Envia mensagens para Claude e retorna (resposta, tokens_usados).
+    Envia mensagens para GPT e retorna (resposta, tokens_usados).
 
     messages: lista de {"role": "user"|"assistant", "content": str}
     """
-    model = model or settings.anthropic_model_chat
+    model = model or settings.openai_model_chat
     system = _SYSTEM_BASE + _build_context_block(profile)
 
-    logger.debug(f"Chamando Claude [{model}] com {len(messages)} mensagens")
+    logger.debug(f"Chamando OpenAI [{model}] com {len(messages)} mensagens")
 
-    response = _client.messages.create(
+    response = _client.chat.completions.create(
         model=model,
-        max_tokens=settings.anthropic_max_tokens,
-        system=system,
-        messages=messages,
+        max_tokens=settings.openai_max_tokens,
+        messages=[{"role": "system", "content": system}, *messages],
     )
 
-    content = response.content[0].text
-    tokens = response.usage.input_tokens + response.usage.output_tokens
+    content = response.choices[0].message.content or ""
+    tokens = response.usage.total_tokens if response.usage else 0
 
-    logger.info(f"Claude respondeu — tokens usados: {tokens}")
+    logger.info(f"GPT respondeu — tokens usados: {tokens}")
     return content, tokens
 
 
 def generate_training_plan(profile: RunnerProfile) -> tuple[str, int]:
-    """Gera planilha semanal de treino usando Claude Sonnet."""
-    prompt = f"""Com base no contexto do corredor abaixo, gere uma planilha semanal de treino.
+    """Gera planilha semanal de treino usando GPT-4o."""
+    prompt = """Com base no contexto do corredor, gere uma planilha semanal de treino.
 
 Retorne um JSON válido com a seguinte estrutura:
-{{
+{
   "semana": "descrição resumida da semana",
   "coach_notes": "observação geral do treinador",
   "dias": [
-    {{
+    {
       "dia": "segunda",
       "tipo": "leve|regenerativo|ritmo|intervalado|longao|descanso",
       "km": 5.0,
       "pace_sugerido": "6:30",
       "orientacoes": "instrução prática de execução"
-    }}
+    }
   ]
-}}
+}
 
 Inclua apenas os dias de treino disponíveis. Inclua dias de descanso explicitamente.
 Responda APENAS com o JSON, sem texto adicional."""
@@ -127,7 +125,7 @@ Responda APENAS com o JSON, sem texto adicional."""
     content, tokens = chat(
         messages=[{"role": "user", "content": prompt}],
         profile=profile,
-        model=settings.anthropic_model_coach,
+        model=settings.openai_model_coach,
     )
     return content, tokens
 
@@ -162,6 +160,6 @@ Responda APENAS com o JSON."""
     content, tokens = chat(
         messages=[{"role": "user", "content": prompt}],
         profile=profile,
-        model=settings.anthropic_model_coach,
+        model=settings.openai_model_coach,
     )
     return content, tokens

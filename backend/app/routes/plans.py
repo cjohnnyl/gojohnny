@@ -1,7 +1,7 @@
 import json
 from datetime import date, timedelta
 
-import anthropic
+from openai import APIError, BadRequestError
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -52,12 +52,12 @@ def generate_plan(
     # Chama Claude Sonnet para gerar a planilha
     try:
         raw, tokens = ai.generate_training_plan(profile)
-    except anthropic.BadRequestError as e:
-        logger.error(f"Anthropic BadRequest: {e}")
+    except BadRequestError as e:
+        logger.error(f"OpenAI BadRequest: {e}")
         raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                            detail="Saldo insuficiente na conta Anthropic. Adicione créditos em console.anthropic.com.")
-    except anthropic.APIError as e:
-        logger.error(f"Anthropic API error: {e}")
+                            detail="Saldo insuficiente ou requisição inválida. Verifique sua conta OpenAI.")
+    except APIError as e:
+        logger.error(f"OpenAI API error: {e}")
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
                             detail="Erro ao se comunicar com o modelo de IA. Tente novamente.")
 

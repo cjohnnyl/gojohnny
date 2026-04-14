@@ -1,6 +1,6 @@
 import json
 
-import anthropic
+from openai import APIError, BadRequestError
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -41,7 +41,7 @@ def submit_feedback(
             recommendation = parsed.get("recomendacao")
         except json.JSONDecodeError:
             analysis = raw
-    except (anthropic.BadRequestError, anthropic.APIError) as e:
+    except (BadRequestError, APIError) as e:
         logger.warning(f"Anthropic indisponível ao analisar feedback: {e}. Salvando sem análise.")
 
     feedback = TrainingFeedback(

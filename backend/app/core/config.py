@@ -23,11 +23,11 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 60
     jwt_refresh_token_expire_days: int = 30
 
-    # Anthropic
-    anthropic_api_key: str
-    anthropic_model_chat: str = "claude-haiku-4-5-20251001"
-    anthropic_model_coach: str = "claude-sonnet-4-6"
-    anthropic_max_tokens: int = 2048
+    # OpenAI
+    openai_api_key: str
+    openai_model_chat: str = "gpt-4o-mini"
+    openai_model_coach: str = "gpt-4o"
+    openai_max_tokens: int = 2048
 
     # Observability
     log_level: str = "INFO"

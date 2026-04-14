@@ -16,8 +16,8 @@ python-jose[cryptography]==3.3.0
 bcrypt==4.2.1
 python-multipart==0.0.12
 
-# Anthropic Claude API
-anthropic==0.40.0
+# OpenAI
+openai>=1.30.0
 
 # Logging
 loguru==0.7.3
