@@ -1,0 +1,39 @@
+# Ambiente
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Variáveis de ambiente — NUNCA commitar
+.env
+*.env.local
+
+# Banco SQLite local
+*.db
+*.sqlite3
+
+# Alembic
+alembic/versions/*.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+dist/
+build/
+*.egg-info/
