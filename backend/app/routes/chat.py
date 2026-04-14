@@ -80,7 +80,7 @@ def send_message(
         role="assistant",
         content=reply,
         tokens_used=tokens,
-        model_used=ai.settings.anthropic_model_chat,
+        model_used=ai.settings.openai_model_chat,
     )
     db.add(assistant_msg)
 
