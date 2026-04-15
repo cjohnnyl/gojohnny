@@ -48,23 +48,34 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Função auxiliar: cria redirect preservando os cookies do Supabase SSR.
+  // Sem isso, a sessão recém-criada pelo signInWithPassword é perdida e o
+  // usuário é redirecionado de volta ao login em loop infinito.
+  function redirectWithCookies(url: URL): NextResponse {
+    const redirectResponse = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value);
+    });
+    return redirectResponse;
+  }
+
   // Rota protegida sem usuário → redireciona para login
   if (isProtected && !user) {
     const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+    return redirectWithCookies(loginUrl);
   }
 
   // Raiz → redireciona para chat (se autenticado) ou login
   if (pathname === "/") {
     if (user) {
-      return NextResponse.redirect(new URL("/chat", request.url));
+      return redirectWithCookies(new URL("/chat", request.url));
     }
-    return NextResponse.redirect(new URL("/login", request.url));
+    return redirectWithCookies(new URL("/login", request.url));
   }
 
   // Login com usuário autenticado → redireciona para chat
   if (isPublic && user) {
-    return NextResponse.redirect(new URL("/chat", request.url));
+    return redirectWithCookies(new URL("/chat", request.url));
   }
 
   return supabaseResponse;

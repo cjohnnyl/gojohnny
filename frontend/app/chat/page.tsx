@@ -281,10 +281,31 @@ export default function ChatPage() {
   }, [messages]);
 
   const loadConversation = useCallback((id: number) => {
-    // Implementação futura: carregar mensagens de uma conversa anterior
     conversationIdRef.current = id;
-    // api.getMessages(id).then(setMessages);
     setSidebarOpen(false);
+
+    api
+      .getMessages(id)
+      .then((msgs) => {
+        const loaded: Message[] = msgs.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
+        setMessages(loaded.length > 0 ? loaded : [
+          {
+            role: "assistant",
+            content: "Conversa carregada. Como posso ajudar?",
+          },
+        ]);
+      })
+      .catch(() => {
+        setMessages([
+          {
+            role: "assistant",
+            content: "Não foi possível carregar esta conversa. Tente novamente.",
+          },
+        ]);
+      });
   }, []);
 
   const startNewChat = useCallback(() => {
@@ -320,6 +341,12 @@ export default function ChatPage() {
     try {
       const data = await api.sendMessage(cleanText, conversationIdRef.current);
       conversationIdRef.current = data.conversation_id;
+
+      // Atualiza lista de conversas na sidebar após nova mensagem
+      api.getConversations().then((convs) => {
+        setConversations(convs as { id: number; title: string; created_at?: string }[]);
+      }).catch(() => {});
+
       setMessages((m) => {
         const updated = [...m];
         updated[updated.length - 1] = {
