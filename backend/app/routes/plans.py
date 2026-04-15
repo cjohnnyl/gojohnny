@@ -2,11 +2,12 @@ import json
 from datetime import date, timedelta
 
 from openai import APIError, BadRequestError
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
+from ..main import limiter, _get_user_id_from_token
 from ..models.training_plan import TrainingPlan
 from ..models.user import User
 from ..services import ai
@@ -23,7 +24,9 @@ def _current_week_bounds() -> tuple[date, date]:
 
 
 @router.post("/generate", status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/hour", key_func=_get_user_id_from_token)
 def generate_plan(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -36,30 +39,21 @@ def generate_plan(
 
     week_start, week_end = _current_week_bounds()
 
-    # Arquiva planilha ativa da semana atual, se existir
-    existing = (
-        db.query(TrainingPlan)
-        .filter(
-            TrainingPlan.user_id == current_user.id,
-            TrainingPlan.week_start == str(week_start),
-            TrainingPlan.status == "active",
-        )
-        .first()
-    )
-    if existing:
-        existing.status = "superseded"
-
-    # Chama Claude Sonnet para gerar a planilha
+    # 1. Chama a IA ANTES de qualquer escrita no banco
     try:
         raw, tokens = ai.generate_training_plan(profile)
     except BadRequestError as e:
-        logger.error(f"OpenAI BadRequest: {e}")
-        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                            detail="Saldo insuficiente ou requisição inválida. Verifique sua conta OpenAI.")
+        logger.error(f"OpenAI {type(e).__name__} (status={getattr(e, 'status_code', 'N/A')})")
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Saldo insuficiente ou requisição inválida. Verifique sua conta OpenAI.",
+        )
     except APIError as e:
-        logger.error(f"OpenAI API error: {e}")
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
-                            detail="Erro ao se comunicar com o modelo de IA. Tente novamente.")
+        logger.error(f"OpenAI {type(e).__name__} (status={getattr(e, 'status_code', 'N/A')})")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Erro ao se comunicar com o modelo de IA. Tente novamente.",
+        )
 
     try:
         plan_data = json.loads(raw)
@@ -79,7 +73,7 @@ def generate_plan(
         "target_race_date": str(profile.target_race_date) if profile.target_race_date else None,
     }
 
-    plan = TrainingPlan(
+    new_plan = TrainingPlan(
         user_id=current_user.id,
         week_start=week_start,
         week_end=week_end,
@@ -88,16 +82,30 @@ def generate_plan(
         coach_notes=plan_data.get("coach_notes"),
         status="active",
     )
-    db.add(plan)
+
+    # 2. Única transação: supersede existente + insere novo
+    existing = (
+        db.query(TrainingPlan)
+        .filter(
+            TrainingPlan.user_id == current_user.id,
+            TrainingPlan.week_start == str(week_start),
+            TrainingPlan.status == "active",
+        )
+        .first()
+    )
+    if existing:
+        existing.status = "superseded"
+
+    db.add(new_plan)
     db.commit()
-    db.refresh(plan)
+    db.refresh(new_plan)
 
     return {
-        "id": plan.id,
-        "week_start": str(plan.week_start),
-        "week_end": str(plan.week_end),
-        "coach_notes": plan.coach_notes,
-        "plan": plan.plan_data,
+        "id": new_plan.id,
+        "week_start": str(new_plan.week_start),
+        "week_end": str(new_plan.week_end),
+        "coach_notes": new_plan.coach_notes,
+        "plan": new_plan.plan_data,
         "tokens_used": tokens,
     }
 

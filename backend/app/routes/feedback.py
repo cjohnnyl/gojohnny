@@ -1,12 +1,14 @@
 import json
 
 from openai import APIError, BadRequestError
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
+from ..main import limiter, _get_user_id_from_token
 from ..models.training_feedback import TrainingFeedback
+from ..models.training_plan import TrainingPlan
 from ..models.user import User
 from ..schemas.feedback import FeedbackCreate, FeedbackResponse
 from ..services import ai
@@ -16,14 +18,29 @@ router = APIRouter()
 
 
 @router.post("", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/hour", key_func=_get_user_id_from_token)
 def submit_feedback(
+    request: Request,
     body: FeedbackCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Valida ownership do plan_id, se fornecido
+    if body.plan_id is not None:
+        plan = db.query(TrainingPlan).filter(
+            TrainingPlan.id == body.plan_id,
+            TrainingPlan.user_id == current_user.id,
+        ).first()
+        if not plan:
+            # Retorna 404 (não 403) para não confirmar existência do recurso
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Planilha não encontrada",
+            )
+
     profile = current_user.profile
 
-    # Analisa feedback com Claude
+    # Analisa feedback com a IA (falha silenciosa — não bloqueia o registro)
     analysis = None
     recommendation = None
     try:
@@ -42,7 +59,10 @@ def submit_feedback(
         except json.JSONDecodeError:
             analysis = raw
     except (BadRequestError, APIError) as e:
-        logger.warning(f"Anthropic indisponível ao analisar feedback: {e}. Salvando sem análise.")
+        logger.warning(
+            f"OpenAI {type(e).__name__} (status={getattr(e, 'status_code', 'N/A')}) "
+            "ao analisar feedback. Salvando sem análise."
+        )
 
     feedback = TrainingFeedback(
         user_id=current_user.id,

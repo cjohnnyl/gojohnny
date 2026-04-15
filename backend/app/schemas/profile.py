@@ -1,40 +1,40 @@
 from datetime import date
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ProfileCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, max_length=100)
     level: str = "beginner"  # beginner | intermediate | advanced
-    weekly_volume_km: Optional[float] = None
-    available_days_per_week: int = 3
-    preferred_days: Optional[str] = None
-    comfortable_pace: Optional[str] = None
+    weekly_volume_km: Optional[float] = Field(None, gt=0, le=500)
+    available_days_per_week: int = Field(3, ge=1, le=7)
+    preferred_days: Optional[str] = Field(None, max_length=100)
+    comfortable_pace: Optional[str] = Field(None, max_length=10)
     main_goal: Optional[str] = None
-    target_race_name: Optional[str] = None
-    target_race_distance_km: Optional[float] = None
+    target_race_name: Optional[str] = Field(None, max_length=200)
+    target_race_distance_km: Optional[float] = Field(None, gt=0)
     target_race_date: Optional[date] = None
-    injury_history: Optional[str] = None
-    physical_limitations: Optional[str] = None
-    location: Optional[str] = None
-    extra_context: Optional[str] = None
+    injury_history: Optional[str] = Field(None, max_length=500)
+    physical_limitations: Optional[str] = Field(None, max_length=500)
+    location: Optional[str] = Field(None, max_length=200)
+    extra_context: Optional[str] = Field(None, max_length=500)
 
 
 class ProfileUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
     level: Optional[str] = None
-    weekly_volume_km: Optional[float] = None
-    available_days_per_week: Optional[int] = None
-    preferred_days: Optional[str] = None
-    comfortable_pace: Optional[str] = None
+    weekly_volume_km: Optional[float] = Field(None, gt=0, le=500)
+    available_days_per_week: Optional[int] = Field(None, ge=1, le=7)
+    preferred_days: Optional[str] = Field(None, max_length=100)
+    comfortable_pace: Optional[str] = Field(None, max_length=10)
     main_goal: Optional[str] = None
-    target_race_name: Optional[str] = None
-    target_race_distance_km: Optional[float] = None
+    target_race_name: Optional[str] = Field(None, max_length=200)
+    target_race_distance_km: Optional[float] = Field(None, gt=0)
     target_race_date: Optional[date] = None
-    injury_history: Optional[str] = None
-    physical_limitations: Optional[str] = None
-    location: Optional[str] = None
-    extra_context: Optional[str] = None
+    injury_history: Optional[str] = Field(None, max_length=500)
+    physical_limitations: Optional[str] = Field(None, max_length=500)
+    location: Optional[str] = Field(None, max_length=200)
+    extra_context: Optional[str] = Field(None, max_length=500)
 
 
 class ProfileResponse(BaseModel):

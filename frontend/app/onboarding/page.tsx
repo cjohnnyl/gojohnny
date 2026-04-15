@@ -87,31 +87,39 @@ export default function OnboardingPage() {
   const totalSteps = 3;
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">Vamos te conhecer</h1>
-          <p className="text-zinc-400 text-sm mt-1">
+          <h1 className="text-3xl font-bold text-white">Vamos te conhecer</h1>
+          <p className="text-zinc-400 text-sm mt-2">
             Etapa {step} de {totalSteps} — Quanto mais contexto, melhor o treino
           </p>
           {/* Progress bar */}
-          <div className="mt-4 h-1 bg-zinc-800 rounded-full">
+          <div className="mt-4 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
             <div
-              className="h-1 bg-orange-500 rounded-full transition-all"
-              style={{ width: `${(step / totalSteps) * 100}%` }}
+              className="h-1.5 rounded-full transition-all"
+              style={{
+                width: `${(step / totalSteps) * 100}%`,
+                background: "linear-gradient(90deg, #7c3aed, #a855f7)",
+              }}
             />
           </div>
         </div>
 
-        <div className="bg-zinc-900 rounded-2xl p-8 border border-zinc-800">
+        <div
+          className="bg-zinc-900/50 rounded-3xl p-8 border border-zinc-800"
+          style={{
+            boxShadow: "0 0 40px rgba(124, 58, 237, 0.08)",
+          }}
+        >
           {/* Step 1 — Identidade */}
           {step === 1 && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-white">Quem é você?</h2>
 
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Nome</label>
+                <label className="block text-sm text-zinc-400 mb-2">Nome</label>
                 <input
                   className="input"
                   placeholder="Como posso te chamar?"
@@ -127,11 +135,18 @@ export default function OnboardingPage() {
                     <button
                       key={l.value}
                       onClick={() => set("level", l.value)}
-                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                      className={`w-full text-left p-3 rounded-lg border transition-all ${
                         form.level === l.value
-                          ? "border-orange-500 bg-orange-500/10 text-white"
-                          : "border-zinc-700 text-zinc-300 hover:border-zinc-500"
+                          ? "border-violet-500 text-white"
+                          : "border-zinc-700 text-zinc-300 hover:border-zinc-600"
                       }`}
+                      style={
+                        form.level === l.value
+                          ? {
+                              background: "rgba(124, 58, 237, 0.12)",
+                            }
+                          : {}
+                      }
                     >
                       <span className="font-medium">{l.label}</span>
                       <span className="text-sm text-zinc-400 block">{l.desc}</span>
@@ -141,7 +156,7 @@ export default function OnboardingPage() {
               </div>
 
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Cidade (opcional)</label>
+                <label className="block text-sm text-zinc-400 mb-2">Cidade (opcional)</label>
                 <input
                   className="input"
                   placeholder="Ex: Santo André, SP"
@@ -164,11 +179,18 @@ export default function OnboardingPage() {
                     <button
                       key={g.value}
                       onClick={() => set("main_goal", g.value)}
-                      className={`p-2.5 rounded-lg border text-sm transition-colors ${
+                      className={`p-2.5 rounded-lg border text-sm transition-all ${
                         form.main_goal === g.value
-                          ? "border-orange-500 bg-orange-500/10 text-white"
-                          : "border-zinc-700 text-zinc-300 hover:border-zinc-500"
+                          ? "border-violet-500 text-white"
+                          : "border-zinc-700 text-zinc-300 hover:border-zinc-600"
                       }`}
+                      style={
+                        form.main_goal === g.value
+                          ? {
+                              background: "rgba(124, 58, 237, 0.12)",
+                            }
+                          : {}
+                      }
                     >
                       {g.label}
                     </button>
@@ -186,7 +208,7 @@ export default function OnboardingPage() {
                   max={7}
                   value={form.available_days_per_week}
                   onChange={(e) => set("available_days_per_week", Number(e.target.value))}
-                  className="w-full accent-orange-500"
+                  className="w-full accent-violet-500"
                 />
                 <div className="flex justify-between text-xs text-zinc-500 mt-1">
                   <span>1</span><span>7</span>
@@ -195,7 +217,7 @@ export default function OnboardingPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-zinc-400 mb-1">Volume semanal (km)</label>
+                  <label className="block text-sm text-zinc-400 mb-2">Volume semanal (km)</label>
                   <input
                     className="input"
                     type="number"
@@ -205,7 +227,7 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-zinc-400 mb-1">Pace confortável</label>
+                  <label className="block text-sm text-zinc-400 mb-2">Pace confortável</label>
                   <input
                     className="input"
                     placeholder="Ex: 5:45"
@@ -223,7 +245,7 @@ export default function OnboardingPage() {
               <h2 className="text-lg font-semibold text-white">Prova e histórico</h2>
 
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">Prova alvo (opcional)</label>
+                <label className="block text-sm text-zinc-400 mb-2">Prova alvo (opcional)</label>
                 <input
                   className="input"
                   placeholder="Ex: Meia Maratona de Santo André"
@@ -234,7 +256,7 @@ export default function OnboardingPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-zinc-400 mb-1">Distância (km)</label>
+                  <label className="block text-sm text-zinc-400 mb-2">Distância (km)</label>
                   <input
                     className="input"
                     type="number"
@@ -244,7 +266,7 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-zinc-400 mb-1">Data da prova</label>
+                  <label className="block text-sm text-zinc-400 mb-2">Data da prova</label>
                   <input
                     className="input"
                     type="date"
@@ -255,7 +277,7 @@ export default function OnboardingPage() {
               </div>
 
               <div>
-                <label className="block text-sm text-zinc-400 mb-1">
+                <label className="block text-sm text-zinc-400 mb-2">
                   Histórico de lesões (opcional)
                 </label>
                 <textarea
@@ -280,7 +302,7 @@ export default function OnboardingPage() {
             {step > 1 && (
               <button
                 onClick={() => setStep((s) => s - 1)}
-                className="flex-1 py-2.5 rounded-lg border border-zinc-700 text-zinc-300 hover:border-zinc-500 transition-colors"
+                className="flex-1 py-3 rounded-lg border border-zinc-700 text-zinc-300 hover:border-violet-500 hover:text-violet-400 transition-colors font-medium"
               >
                 Voltar
               </button>
@@ -295,7 +317,10 @@ export default function OnboardingPage() {
                     ? !form.main_goal
                     : false
                 }
-                className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg transition-colors"
+                className="flex-1 text-white font-semibold py-3 rounded-lg transition-all disabled:opacity-40"
+                style={{
+                  background: "linear-gradient(135deg, #7c3aed, #a855f7)",
+                }}
               >
                 Continuar
               </button>
@@ -303,7 +328,10 @@ export default function OnboardingPage() {
               <button
                 onClick={handleFinish}
                 disabled={loading || !form.main_goal}
-                className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white font-semibold py-2.5 rounded-lg transition-colors"
+                className="flex-1 text-white font-semibold py-3 rounded-lg transition-all disabled:opacity-40"
+                style={{
+                  background: "linear-gradient(135deg, #7c3aed, #a855f7)",
+                }}
               >
                 {loading ? "Salvando..." : "Começar"}
               </button>
@@ -315,8 +343,8 @@ export default function OnboardingPage() {
       <style jsx global>{`
         .input {
           width: 100%;
-          background: rgb(39 39 42);
-          border: 1px solid rgb(63 63 70);
+          background: rgba(39, 39, 42, 0.5);
+          border: 1px solid rgb(63, 63, 70);
           border-radius: 0.5rem;
           padding: 0.625rem 1rem;
           color: white;
@@ -324,11 +352,11 @@ export default function OnboardingPage() {
           outline: none;
         }
         .input:focus {
-          border-color: rgb(249 115 22);
-          box-shadow: 0 0 0 2px rgba(249,115,22,0.2);
+          border-color: rgb(124, 58, 237);
+          box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
         }
         .input::placeholder {
-          color: rgb(113 113 122);
+          color: rgb(113, 113, 122);
         }
       `}</style>
     </div>

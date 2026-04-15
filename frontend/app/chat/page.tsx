@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
@@ -10,12 +10,206 @@ type Message = {
 };
 
 const QUICK_ACTIONS = [
-  "Gera minha planilha da semana",
-  "Como foi meu último treino?",
-  "Qual o melhor aquecimento antes de um treino de ritmo?",
-  "O que comer antes de um longão?",
-  "Dicas para melhorar meu pace",
+  "📋 Gera minha planilha da semana",
+  "📊 Como foi meu último treino?",
+  "🔥 Aquecimento para treino de ritmo",
+  "⚡ O que comer antes do longão?",
+  "🏃 Dicas para melhorar meu pace",
 ];
+
+// Simples renderizador de markdown
+function renderMarkdown(text: string): ReactNode {
+  const lines = text.split("\n");
+  const result: ReactNode[] = [];
+  let listItems: string[] = [];
+  let listType: "bullet" | "numbered" | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Flush pending list
+    if (
+      listItems.length > 0 &&
+      !trimmed.match(/^[-*]\s/) &&
+      !trimmed.match(/^\d+\.\s/)
+    ) {
+      if (listType === "bullet") {
+        result.push(
+          <ul key={`list-${i}`} className="list-disc list-inside space-y-1 my-2">
+            {listItems.map((item, idx) => (
+              <li key={idx} className="text-zinc-100">
+                {renderInlineMarkdown(item)}
+              </li>
+            ))}
+          </ul>
+        );
+      } else if (listType === "numbered") {
+        result.push(
+          <ol key={`list-${i}`} className="list-decimal list-inside space-y-1 my-2">
+            {listItems.map((item, idx) => (
+              <li key={idx} className="text-zinc-100">
+                {renderInlineMarkdown(item)}
+              </li>
+            ))}
+          </ol>
+        );
+      }
+      listItems = [];
+      listType = null;
+    }
+
+    // Headings
+    if (trimmed.startsWith("## ")) {
+      result.push(
+        <h2 key={i} className="text-white font-semibold text-sm mt-3 mb-1">
+          {renderInlineMarkdown(trimmed.slice(3))}
+        </h2>
+      );
+    } else if (trimmed.startsWith("### ")) {
+      result.push(
+        <h3 key={i} className="text-white font-semibold text-sm mt-3 mb-1">
+          {renderInlineMarkdown(trimmed.slice(4))}
+        </h3>
+      );
+    }
+    // List items
+    else if (trimmed.match(/^[-*]\s/)) {
+      const item = trimmed.slice(2);
+      if (listType !== "bullet") {
+        if (listItems.length > 0) {
+          if (listType === "numbered") {
+            result.push(
+              <ol key={`list-${i}`} className="list-decimal list-inside space-y-1 my-2">
+                {listItems.map((li, idx) => (
+                  <li key={idx} className="text-zinc-100">
+                    {renderInlineMarkdown(li)}
+                  </li>
+                ))}
+              </ol>
+            );
+          }
+          listItems = [];
+        }
+        listType = "bullet";
+      }
+      listItems.push(item);
+    } else if (trimmed.match(/^\d+\.\s/)) {
+      const item = trimmed.replace(/^\d+\.\s/, "");
+      if (listType !== "numbered") {
+        if (listItems.length > 0) {
+          if (listType === "bullet") {
+            result.push(
+              <ul key={`list-${i}`} className="list-disc list-inside space-y-1 my-2">
+                {listItems.map((li, idx) => (
+                  <li key={idx} className="text-zinc-100">
+                    {renderInlineMarkdown(li)}
+                  </li>
+                ))}
+              </ul>
+            );
+          }
+          listItems = [];
+        }
+        listType = "numbered";
+      }
+      listItems.push(item);
+    }
+    // Empty line
+    else if (trimmed === "") {
+      result.push(<div key={i} className="h-2" />);
+    }
+    // Regular paragraph
+    else {
+      result.push(
+        <p key={i} className="text-zinc-100 leading-relaxed">
+          {renderInlineMarkdown(trimmed)}
+        </p>
+      );
+    }
+  }
+
+  // Flush remaining list
+  if (listItems.length > 0) {
+    if (listType === "bullet") {
+      result.push(
+        <ul key="final-list" className="list-disc list-inside space-y-1 my-2">
+          {listItems.map((item, idx) => (
+            <li key={idx} className="text-zinc-100">
+              {renderInlineMarkdown(item)}
+            </li>
+          ))}
+        </ul>
+      );
+    } else if (listType === "numbered") {
+      result.push(
+        <ol key="final-list" className="list-decimal list-inside space-y-1 my-2">
+          {listItems.map((item, idx) => (
+            <li key={idx} className="text-zinc-100">
+              {renderInlineMarkdown(item)}
+            </li>
+          ))}
+        </ol>
+      );
+    }
+  }
+
+  return result;
+}
+
+// Renderiza inline markdown (bold, italic, code)
+function renderInlineMarkdown(text: string): ReactNode {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+
+  // Regex para capturar **bold**, *italic*, e `code`
+  // bold: .+? (não-guloso, permite asteriscos internos)
+  // italic: lookahead/lookbehind evita capturar ** como italic
+  const regex = /\*\*(.+?)\*\*|\*(?!\*)(.+?)(?<!\*)\*(?!\*)|`([^`]+)`/g;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Texto antes do match
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    if (match[1]) {
+      // **bold**
+      parts.push(
+        <strong key={match.index} className="font-semibold text-violet-300">
+          {match[1]}
+        </strong>
+      );
+    } else if (match[2]) {
+      // *italic*
+      parts.push(
+        <em key={match.index} className="italic text-violet-300">
+          {match[2]}
+        </em>
+      );
+    } else if (match[3]) {
+      // `code`
+      parts.push(
+        <code
+          key={match.index}
+          className="bg-zinc-800 text-violet-300 px-1.5 py-0.5 rounded text-xs font-mono"
+        >
+          {match[3]}
+        </code>
+      );
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  // Texto restante
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length === 0 ? text : parts;
+}
 
 export default function ChatPage() {
   const router = useRouter();
@@ -43,7 +237,7 @@ export default function ChatPage() {
         setMessages([
           {
             role: "assistant",
-            content: `Olá, ${prof.name}! Sou o GoJohnny, seu treinador digital de corrida. Como posso te ajudar hoje?`,
+            content: `Oi, ${prof.name}! 💪 Sou o GoJohnny — seu treinador digital de corrida.\n\nEstou aqui pra te ajudar a treinar com mais inteligência, consistência e resultado. Me conta: **o que você precisa hoje?**`,
           },
         ]);
       })
@@ -57,18 +251,22 @@ export default function ChatPage() {
   const send = useCallback(async (text: string) => {
     if (!text.trim() || sendingRef.current) return;
 
-    const content = text.trim();
+    // Remove emoji do início da ação rápida
+    const cleanText = text.replace(/^[\p{Emoji}\s]+/u, "").trim();
+
+    if (!cleanText) return;
+
     sendingRef.current = true;
     setInput("");
     setMessages((m) => [
       ...m,
-      { role: "user", content },
+      { role: "user", content: cleanText },
       { role: "assistant", content: "", pending: true },
     ]);
     setLoading(true);
 
     try {
-      const data = await api.sendMessage(content, conversationIdRef.current);
+      const data = await api.sendMessage(cleanText, conversationIdRef.current);
       conversationIdRef.current = data.conversation_id;
       setMessages((m) => {
         const updated = [...m];
@@ -105,6 +303,8 @@ export default function ChatPage() {
 
   function logout() {
     localStorage.clear();
+    // Remove cookie de sessão para que o middleware redirecione corretamente
+    document.cookie = "has_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
     router.push("/login");
   }
 
@@ -114,24 +314,29 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen bg-zinc-950">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900">
+      <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm animate-pulse-glow"
+            style={{
+              background: "linear-gradient(135deg, #7c3aed, #a855f7)",
+            }}
+          >
             G
           </div>
           <div>
             <p className="text-white font-semibold text-sm leading-none">
               GoJohnny
             </p>
-            <p className="text-zinc-500 text-xs">
-              Treinador digital de corrida
+            <p className="text-violet-400 text-xs">
+              ● Treinador ativo
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push("/plano")}
-            className="text-zinc-400 hover:text-white text-xs px-3 py-1.5 rounded-lg border border-zinc-700 hover:border-zinc-500 transition-colors"
+            className="text-zinc-400 hover:text-violet-400 text-xs px-3 py-1.5 rounded-lg border border-zinc-700 hover:border-violet-500 transition-colors font-medium"
           >
             Planilha
           </button>
@@ -149,28 +354,48 @@ export default function ChatPage() {
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} animate-slide-up`}
           >
             {m.role === "assistant" && (
-              <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold mr-2 flex-shrink-0 mt-0.5"
+                style={{
+                  background: "linear-gradient(135deg, #7c3aed, #a855f7)",
+                  boxShadow: "0 0 12px rgba(124, 58, 237, 0.4)",
+                }}
+              >
                 G
               </div>
             )}
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+              className={`max-w-xs sm:max-w-sm md:max-w-md rounded-lg px-4 py-3 text-sm leading-relaxed ${
                 m.role === "user"
-                  ? "bg-orange-500 text-white rounded-tr-sm"
-                  : "bg-zinc-800 text-zinc-100 rounded-tl-sm"
+                  ? "rounded-br-none text-white"
+                  : "border border-zinc-700 rounded-tl-none text-zinc-100"
               }`}
+              style={
+                m.role === "user"
+                  ? {
+                      background: "linear-gradient(135deg, #7c3aed, #6d28d9)",
+                    }
+                  : {
+                      background: "#18181b",
+                      borderLeftColor: "#7c3aed",
+                      borderLeftWidth: "2px",
+                    }
+              }
             >
               {m.pending ? (
                 <span className="flex gap-1 items-center h-5">
-                  <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                  <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                  <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                  <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-typing-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-typing-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-typing-bounce" style={{ animationDelay: "300ms" }} />
+                  <span className="text-xs text-zinc-500 ml-1">pensando...</span>
                 </span>
-              ) : (
+              ) : m.role === "user" ? (
                 m.content
+              ) : (
+                renderMarkdown(m.content)
               )}
             </div>
           </div>
@@ -186,7 +411,10 @@ export default function ChatPage() {
               key={a}
               onClick={() => send(a)}
               disabled={loading}
-              className="text-xs bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 transition-colors"
+              className="text-xs px-3 py-1.5 rounded-full border transition-all disabled:opacity-50 text-zinc-300 hover:text-violet-300 border-zinc-700 hover:border-violet-500"
+              style={{
+                background: "rgba(124, 58, 237, 0.08)",
+              }}
             >
               {a}
             </button>
@@ -196,7 +424,13 @@ export default function ChatPage() {
 
       {/* Input */}
       <div className="px-4 pb-4 pt-2 border-t border-zinc-800">
-        <div className="flex gap-2 bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-2 focus-within:border-orange-500 transition-colors">
+        <div
+          className="flex gap-2 border rounded-2xl px-4 py-2 transition-colors focus-within:border-violet-500"
+          style={{
+            background: "#111116",
+            borderColor: "#27272a",
+          }}
+        >
           <textarea
             ref={inputRef}
             rows={1}
@@ -204,18 +438,21 @@ export default function ChatPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
             disabled={loading}
-            placeholder="Escreva sua mensagem... (Enter para enviar)"
-            className="flex-1 bg-transparent text-white text-sm resize-none outline-none placeholder-zinc-500 max-h-32 py-1"
+            placeholder="Fale com seu treinador... (Enter para enviar)"
+            className="flex-1 bg-transparent text-white text-sm resize-none outline-none placeholder-zinc-600 max-h-32 py-1"
             style={{ scrollbarWidth: "none" }}
           />
           <button
             onClick={() => send(input)}
             disabled={!input.trim() || loading}
             aria-label="Enviar mensagem"
-            className="self-end w-8 h-8 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-30 flex items-center justify-center transition-colors flex-shrink-0"
+            className="self-end w-8 h-8 rounded-lg disabled:opacity-30 flex items-center justify-center transition-all flex-shrink-0 text-white"
+            style={{
+              background: "linear-gradient(135deg, #7c3aed, #a855f7)",
+            }}
           >
             <svg
-              className="w-4 h-4 text-white"
+              className="w-4 h-4"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -230,7 +467,7 @@ export default function ChatPage() {
           </button>
         </div>
         <p className="text-zinc-600 text-xs text-center mt-2">
-          GoJohnny não substitui médico, nutricionista ou fisioterapeuta.
+          GoJohnny é um treinador digital — sempre consulte um profissional de saúde para questões médicas.
         </p>
       </div>
     </div>

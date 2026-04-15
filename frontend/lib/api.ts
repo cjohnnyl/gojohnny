@@ -23,8 +23,12 @@ async function tryRefresh(): Promise<string> {
 
   if (!res.ok) throw new Error("Refresh inválido");
 
-  const data = await res.json();
-  return data.access_token as string;
+  const data = await res.json() as { access_token: string; refresh_token: string };
+  // Persiste o novo refresh_token — o backend emite um par novo a cada refresh
+  if (data.refresh_token && typeof window !== "undefined") {
+    localStorage.setItem("refresh_token", data.refresh_token);
+  }
+  return data.access_token;
 }
 
 async function req<T>(

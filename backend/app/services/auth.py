@@ -16,6 +16,8 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
+    if not plain or not hashed:
+        return False
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 

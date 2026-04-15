@@ -1,21 +1,20 @@
 from datetime import date, datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class FeedbackCreate(BaseModel):
     training_date: date
     plan_id: Optional[int] = None
-    effort_rating: Optional[int] = None     # 1-10
-    pain_level: Optional[int] = None        # 0-10
-    sleep_quality: Optional[int] = None     # 1-5
+    effort_rating: Optional[int] = Field(None, ge=1, le=10)
+    pain_level: Optional[int] = Field(None, ge=0, le=10)
+    sleep_quality: Optional[int] = Field(None, ge=1, le=5)
     general_feeling: Optional[str] = None  # great | good | ok | bad | very_bad
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=1000)
 
 
 class FeedbackResponse(BaseModel):
     id: int
-    user_id: int
     training_date: date
     effort_rating: Optional[int]
     pain_level: Optional[int]

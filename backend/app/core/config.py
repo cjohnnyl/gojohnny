@@ -10,7 +10,7 @@ _ENV_FILE = _ROOT / ".env"
 class Settings(BaseSettings):
     # App
     app_env: str = "development"
-    app_debug: bool = True
+    app_debug: bool = False
     app_name: str = "GoJohnny"
     app_version: str = "0.1.0"
 

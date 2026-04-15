@@ -24,6 +24,8 @@ export default function LoginPage() {
       const data = await fn(email, password);
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("refresh_token", data.refresh_token);
+      // Cookie leve usado pelo middleware (Edge Runtime não acessa localStorage)
+      document.cookie = "has_session=1; path=/; SameSite=Lax";
       authenticated = true;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro ao autenticar");
@@ -45,27 +47,64 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
+    <div
+      className="min-h-screen flex items-center justify-center bg-zinc-950 px-4"
+      style={{
+        background:
+          "linear-gradient(135deg, #09090b 0%, #0f0b1a 100%)",
+      }}
+    >
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">GoJohnny</h1>
-          <p className="text-zinc-400 mt-1 text-sm">Seu treinador digital de corrida de rua</p>
+          {/* G Icon with gradient */}
+          <div className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center font-bold text-lg text-white flex-shrink-0"
+            style={{
+              background: "linear-gradient(135deg, #7c3aed, #a855f7)",
+            }}
+          >
+            G
+          </div>
+          <h1 className="text-4xl font-bold text-white"
+            style={{
+              background: "linear-gradient(to right, #a78bfa, #a855f7)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            GoJohnny
+          </h1>
+          <p className="text-zinc-400 mt-2 text-sm">Seu treinador digital de corrida</p>
         </div>
 
         {/* Card */}
-        <div className="bg-zinc-900 rounded-2xl p-8 border border-zinc-800">
+        <div
+          className="bg-zinc-900/50 rounded-3xl p-8 border border-zinc-800"
+          style={{
+            boxShadow: "0 0 40px rgba(124, 58, 237, 0.08)",
+          }}
+        >
           {/* Tabs */}
-          <div className="flex rounded-lg bg-zinc-800 p-1 mb-6">
+          <div className="flex rounded-xl bg-zinc-800 p-1 mb-6">
             {(["login", "register"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => { setTab(t); setError(""); }}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
+                onClick={() => {
+                  setTab(t);
+                  setError("");
+                }}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   tab === t
-                    ? "bg-zinc-600 text-white"
-                    : "text-zinc-400 hover:text-white"
+                    ? "text-white"
+                    : "text-zinc-400 hover:text-zinc-200"
                 }`}
+                style={
+                  tab === t
+                    ? {
+                        background: "linear-gradient(135deg, #7c3aed, #6d28d9)",
+                      }
+                    : {}
+                }
               >
                 {t === "login" ? "Entrar" : "Criar conta"}
               </button>
@@ -74,25 +113,25 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-zinc-400 mb-1">Email</label>
+              <label className="block text-sm text-zinc-400 mb-2">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
                 placeholder="voce@email.com"
               />
             </div>
             <div>
-              <label className="block text-sm text-zinc-400 mb-1">Senha</label>
+              <label className="block text-sm text-zinc-400 mb-2">Senha</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
                 placeholder="••••••••"
               />
             </div>
@@ -106,7 +145,12 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
+              className="w-full text-white font-semibold py-3 rounded-lg transition-all disabled:opacity-50 mt-2"
+              style={{
+                background: loading
+                  ? "linear-gradient(135deg, #7c3aed, #6d28d9)"
+                  : "linear-gradient(135deg, #7c3aed, #a855f7)",
+              }}
             >
               {loading ? "Aguarde..." : tab === "login" ? "Entrar" : "Criar conta"}
             </button>

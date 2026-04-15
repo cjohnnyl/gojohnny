@@ -11,10 +11,11 @@ router = APIRouter()
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
-    if auth_service.get_user_by_email(db, body.email):
+    email = body.email.lower().strip()
+    if auth_service.get_user_by_email(db, email):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email já cadastrado")
 
-    user = auth_service.create_user(db, body.email, body.password)
+    user = auth_service.create_user(db, email, body.password)
     return TokenResponse(
         access_token=auth_service.create_access_token(user.id),
         refresh_token=auth_service.create_refresh_token(user.id),
@@ -23,7 +24,8 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
-    user = auth_service.authenticate(db, body.email, body.password)
+    email = body.email.lower().strip()
+    user = auth_service.authenticate(db, email, body.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

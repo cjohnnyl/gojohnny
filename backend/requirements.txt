@@ -17,7 +17,10 @@ bcrypt==4.2.1
 python-multipart==0.0.12
 
 # OpenAI
-openai>=1.30.0
+openai>=1.30.0,<2.0.0
+
+# Rate limiting
+slowapi==0.1.9
 
 # Logging
 loguru==0.7.3
@@ -28,4 +31,3 @@ httpx==0.28.1
 # Dev
 pytest==8.3.4
 pytest-asyncio==0.24.0
-httpx==0.28.1
