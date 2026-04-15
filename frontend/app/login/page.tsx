@@ -1,48 +1,107 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
 import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [tab, setTab] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // BUG-01: autenticação e verificação de perfil em blocos separados.
-    // Erros de rede no getProfile não devem exibir mensagem de autenticação.
-    let authenticated = false;
-    try {
-      const fn = tab === "login" ? api.login : api.register;
-      const data = await fn(email, password);
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("refresh_token", data.refresh_token);
-      // Cookie leve usado pelo middleware (Edge Runtime não acessa localStorage)
-      document.cookie = "has_session=1; path=/; SameSite=Lax";
-      authenticated = true;
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao autenticar");
-      setLoading(false);
+    if (tab === "login") {
+      // Login com Supabase
+      try {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          setError(signInError.message || "Erro ao fazer login");
+          setLoading(false);
+          return;
+        }
+
+        // Verificar perfil — se não tiver, bot fará onboarding no chat
+        try {
+          await api.getProfile();
+          router.push("/chat");
+        } catch {
+          // Perfil não existe — o chat fará onboarding conversacional
+          router.push("/chat");
+        }
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Erro ao fazer login");
+        setLoading(false);
+      }
+    } else {
+      // Registro com Supabase
+      try {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+
+        if (signUpError) {
+          setError(signUpError.message || "Erro ao criar conta");
+          setLoading(false);
+          return;
+        }
+
+        setConfirmationSent(true);
+        setLoading(false);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Erro ao criar conta");
+        setLoading(false);
+      }
+    }
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) {
+      setError("Digite seu email");
       return;
     }
 
-    if (authenticated) {
-      // Verificação de perfil: qualquer falha (inclusive erro de rede) redireciona
-      // para /onboarding — nunca exibe mensagem de erro de autenticação.
-      try {
-        await api.getProfile();
-        router.push("/chat");
-      } catch {
-        router.push("/onboarding");
+    setError("");
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+
+      if (error) {
+        setError(error.message || "Erro ao enviar email de recuperação");
+        setLoading(false);
+        return;
       }
-      // Não chama setLoading(false) aqui: o redirect vai desmontar o componente.
+
+      setError("");
+      alert(
+        "Email de recuperação enviado! Verifique sua caixa de entrada."
+      );
+      setLoading(false);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Erro ao enviar email"
+      );
+      setLoading(false);
     }
   }
 
@@ -111,50 +170,100 @@ export default function LoginPage() {
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
-                placeholder="voce@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">Senha</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-
-            {error && (
-              <p className="text-red-400 text-sm bg-red-950/30 border border-red-800/50 rounded-lg px-3 py-2">
-                {error}
+          {confirmationSent ? (
+            <div className="text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-violet-500/20 border border-violet-500/30">
+                <svg
+                  className="w-6 h-6 text-violet-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+              <p className="text-white font-medium">Conta criada com sucesso!</p>
+              <p className="text-zinc-400 text-sm">
+                Verifique seu email para ativar sua conta. Um link de confirmação foi enviado para{" "}
+                <span className="text-white">{email}</span>.
               </p>
-            )}
+              <button
+                onClick={() => {
+                  setConfirmationSent(false);
+                  setEmail("");
+                  setPassword("");
+                }}
+                className="text-sm text-violet-400 hover:text-violet-300 transition"
+              >
+                Voltar para login
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-zinc-400 mb-2">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all disabled:opacity-50"
+                  placeholder="voce@email.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-2">Senha</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  disabled={loading}
+                  className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all disabled:opacity-50"
+                  placeholder="••••••••"
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full text-white font-semibold py-3 rounded-lg transition-all disabled:opacity-50 mt-2"
-              style={{
-                background: loading
-                  ? "linear-gradient(135deg, #7c3aed, #6d28d9)"
-                  : "linear-gradient(135deg, #7c3aed, #a855f7)",
-              }}
-            >
-              {loading ? "Aguarde..." : tab === "login" ? "Entrar" : "Criar conta"}
-            </button>
-          </form>
+              {error && (
+                <p className="text-red-400 text-sm bg-red-950/30 border border-red-800/50 rounded-lg px-3 py-2">
+                  {error}
+                </p>
+              )}
+
+              {tab === "login" && (
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={loading || !email}
+                    className="text-xs text-violet-400 hover:text-violet-300 transition disabled:opacity-50"
+                  >
+                    Esqueci minha senha
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full text-white font-semibold py-3 rounded-lg transition-all disabled:opacity-50 mt-2"
+                style={{
+                  background: loading
+                    ? "linear-gradient(135deg, #7c3aed, #6d28d9)"
+                    : "linear-gradient(135deg, #7c3aed, #a855f7)",
+                }}
+              >
+                {loading ? "Aguarde..." : tab === "login" ? "Entrar" : "Criar conta"}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

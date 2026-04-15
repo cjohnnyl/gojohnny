@@ -13,19 +13,27 @@ settings = get_settings()
 
 
 def _get_user_id_from_token(request: Request) -> str:
-    """Extrai user_id do JWT para usar como chave de rate limiting por usuário.
+    """Extrai user_id do JWT Supabase para usar como chave de rate limiting por usuário.
     Cai de volta para o IP caso o token não esteja presente ou seja inválido.
     """
-    from .services.auth import decode_token
+    from .services.deps import get_current_user_id
+    from jose import jwt, JWTError
 
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
-        payload = decode_token(token)
-        if payload:
-            sub = payload.get("sub")
-            if sub and str(sub).isdigit():
-                return f"user:{sub}"
+        try:
+            payload = jwt.decode(
+                token,
+                get_settings().supabase_jwt_secret,
+                algorithms=["HS256"],
+                options={"verify_aud": False},
+            )
+            user_id = payload.get("sub")
+            if user_id:
+                return f"user:{user_id}"
+        except (JWTError, Exception):
+            pass
     # fallback para IP
     return get_remote_address(request)
 
@@ -90,10 +98,10 @@ def health():
     return {"status": "ok"}
 
 
-from .routes import auth, chat, feedback, plans, profile
+from .routes import chat, feedback, plans, profile, memory
 
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(profile.router, prefix="/profile", tags=["profile"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(plans.router, prefix="/plans", tags=["plans"])
 app.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
+app.include_router(memory.router, prefix="/memory", tags=["memory"])

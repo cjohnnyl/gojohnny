@@ -3,9 +3,11 @@ from typing import Optional
 
 from openai import OpenAI
 from loguru import logger
+from sqlalchemy.orm import Session
 
 from ..core.config import get_settings
 from ..models.runner_profile import RunnerProfile
+from ..models.runner_memory import RunnerMemory
 
 settings = get_settings()
 _client = OpenAI(api_key=settings.openai_api_key)
@@ -75,15 +77,24 @@ def _build_context_block(profile: Optional[RunnerProfile]) -> str:
 def chat(
     messages: list[dict],
     profile: Optional[RunnerProfile] = None,
+    memory: Optional[RunnerMemory] = None,
     model: Optional[str] = None,
 ) -> tuple[str, int]:
     """
     Envia mensagens para GPT e retorna (resposta, tokens_usados).
 
     messages: lista de {"role": "user"|"assistant", "content": str}
+    profile: perfil estático do corredor
+    memory: memória dinâmica com histórico e contexto
     """
     model = model or settings.openai_model_chat
     system = _SYSTEM_BASE + _build_context_block(profile)
+
+    # Injeta contexto dinâmico da memória se disponível
+    if memory:
+        from . import memory_service
+        dynamic_context = memory_service.build_dynamic_context_block(memory)
+        system += dynamic_context
 
     logger.debug(f"Chamando OpenAI [{model}] com {len(messages)} mensagens")
 

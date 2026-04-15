@@ -1,82 +1,49 @@
+import { createClient } from "./supabase";
+
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8011";
 
-function authHeaders(token?: string | null): Record<string, string> {
-  const t =
-    token ??
-    (typeof window !== "undefined" ? localStorage.getItem("access_token") : null);
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}
-
-// BUG-06: tenta renovar o access_token usando o refresh_token armazenado.
-// Retorna o novo access_token ou lança erro se o refresh falhar.
-async function tryRefresh(): Promise<string> {
-  const refreshToken =
-    typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
-
-  if (!refreshToken) throw new Error("Sem refresh token");
-
-  const res = await fetch(`${BASE}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
-
-  if (!res.ok) throw new Error("Refresh inválido");
-
-  const data = await res.json() as { access_token: string; refresh_token: string };
-  // Persiste o novo refresh_token — o backend emite um par novo a cada refresh
-  if (data.refresh_token && typeof window !== "undefined") {
-    localStorage.setItem("refresh_token", data.refresh_token);
+async function authHeaders(): Promise<Record<string, string>> {
+  if (typeof window === "undefined") {
+    return {};
   }
-  return data.access_token;
+
+  try {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
 }
 
 async function req<T>(
   path: string,
-  options: RequestInit = {},
-  isRetry = false
+  options: RequestInit = {}
 ): Promise<T> {
+  const headers = await authHeaders();
+
   const res = await fetch(`${BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",
-      ...authHeaders(),
+      ...headers,
       ...(options.headers as Record<string, string>),
     },
     ...options,
   });
 
-  // BUG-06: ao receber 401, tenta refresh uma única vez antes de desistir.
-  if (res.status === 401 && !isRetry) {
-    try {
-      const newToken = await tryRefresh();
-      localStorage.setItem("access_token", newToken);
-
-      // Repete a requisição original com o novo token.
-      const retryRes = await fetch(`${BASE}${path}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders(newToken),
-          ...(options.headers as Record<string, string>),
-        },
-        ...options,
-      });
-
-      if (!retryRes.ok) {
-        const err = await retryRes.json().catch(() => ({ detail: retryRes.statusText }));
-        throw new Error(err.detail || "Erro desconhecido");
+  // 401: sessão expirou — redirecionar para login via Supabase (signOut)
+  if (res.status === 401) {
+    if (typeof window !== "undefined") {
+      try {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+      } catch {
+        // Ignorar erro ao fazer sign out
       }
-
-      if (retryRes.status === 204) return undefined as T;
-      return retryRes.json();
-    } catch {
-      // Refresh falhou: limpa sessão e redireciona para login.
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        window.location.href = "/login";
-      }
-      throw new Error("Sessão expirada. Faça login novamente.");
+      window.location.href = "/login";
     }
+    throw new Error("Sessão expirada. Faça login novamente.");
   }
 
   if (!res.ok) {

@@ -12,7 +12,7 @@ class RunnerProfile(Base):
     __tablename__ = "runner_profiles"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, nullable=False)
+    user_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False, index=True)
 
     # Identificação básica
     name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -55,5 +55,4 @@ class RunnerProfile(Base):
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    # Relacionamentos
-    user: Mapped["User"] = relationship("User", back_populates="profile")
+    # Nota: user_id agora referencia auth.users.id do Supabase (não mais a tabela users local)

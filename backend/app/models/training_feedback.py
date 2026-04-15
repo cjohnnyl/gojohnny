@@ -12,7 +12,7 @@ class TrainingFeedback(Base):
     __tablename__ = "training_feedbacks"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     plan_id: Mapped[Optional[int]] = mapped_column(ForeignKey("training_plans.id"), nullable=True)
 
     training_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -41,5 +41,4 @@ class TrainingFeedback(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     # Relacionamentos
-    user: Mapped["User"] = relationship("User", back_populates="feedbacks")
     plan: Mapped[Optional["TrainingPlan"]] = relationship("TrainingPlan", back_populates="feedbacks")

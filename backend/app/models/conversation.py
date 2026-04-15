@@ -12,7 +12,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
 
     # Título gerado automaticamente (opcional)
     title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
@@ -23,7 +23,6 @@ class Conversation(Base):
     )
 
     # Relacionamentos
-    user: Mapped["User"] = relationship("User", back_populates="conversations")
     messages: Mapped[list["Message"]] = relationship(
         "Message", back_populates="conversation", order_by="Message.created_at"
     )

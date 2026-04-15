@@ -7,11 +7,10 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
-from ..main import limiter, _get_user_id_from_token
 from ..models.training_plan import TrainingPlan
-from ..models.user import User
+from ..models.runner_profile import RunnerProfile
 from ..services import ai
-from ..services.deps import get_current_user
+from ..services.deps import get_current_user_id
 
 router = APIRouter()
 
@@ -24,13 +23,12 @@ def _current_week_bounds() -> tuple[date, date]:
 
 
 @router.post("/generate", status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/hour", key_func=_get_user_id_from_token)
 def generate_plan(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user_id),
 ):
-    profile = current_user.profile
+    profile = db.query(RunnerProfile).filter(RunnerProfile.user_id == current_user_id).first()
     if not profile:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -74,7 +72,7 @@ def generate_plan(
     }
 
     new_plan = TrainingPlan(
-        user_id=current_user.id,
+        user_id=current_user_id,
         week_start=week_start,
         week_end=week_end,
         plan_data=plan_data.get("dias", plan_data),
@@ -87,7 +85,7 @@ def generate_plan(
     existing = (
         db.query(TrainingPlan)
         .filter(
-            TrainingPlan.user_id == current_user.id,
+            TrainingPlan.user_id == current_user_id,
             TrainingPlan.week_start == str(week_start),
             TrainingPlan.status == "active",
         )
@@ -113,13 +111,13 @@ def generate_plan(
 @router.get("/current")
 def get_current_plan(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     week_start, _ = _current_week_bounds()
     plan = (
         db.query(TrainingPlan)
         .filter(
-            TrainingPlan.user_id == current_user.id,
+            TrainingPlan.user_id == current_user_id,
             TrainingPlan.week_start == str(week_start),
             TrainingPlan.status == "active",
         )
@@ -142,11 +140,11 @@ def get_current_plan(
 @router.get("")
 def list_plans(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     plans = (
         db.query(TrainingPlan)
-        .filter(TrainingPlan.user_id == current_user.id)
+        .filter(TrainingPlan.user_id == current_user_id)
         .order_by(TrainingPlan.week_start.desc())
         .limit(12)
         .all()

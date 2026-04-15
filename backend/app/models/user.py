@@ -1,24 +1,13 @@
-from __future__ import annotations
-from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from ..core.database import Base
+"""
+Model User — Descontinuado
 
+Usuários agora são gerenciados exclusivamente pelo Supabase Auth (auth.users).
+Este arquivo é mantido como stub para evitar quebra de imports em código legado.
 
-class User(Base):
-    __tablename__ = "users"
+Migração:
+- user_id agora é String(36) referenciando auth.users.id do Supabase
+- Todas as tabelas removem FK para users.id
+- Autenticação via JWT do Supabase, não mais via password_hash local
+"""
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
-    )
-
-    # Relacionamentos
-    profile: Mapped["RunnerProfile"] = relationship("RunnerProfile", back_populates="user", uselist=False)
-    training_plans: Mapped[list["TrainingPlan"]] = relationship("TrainingPlan", back_populates="user")
-    feedbacks: Mapped[list["TrainingFeedback"]] = relationship("TrainingFeedback", back_populates="user")
-    conversations: Mapped[list["Conversation"]] = relationship("Conversation", back_populates="user")
+# Importações neste arquivo foram removidas — modelo obsoleto

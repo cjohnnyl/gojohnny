@@ -12,7 +12,7 @@ class TrainingPlan(Base):
     __tablename__ = "training_plans"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
 
     # Semana de referência
     week_start: Mapped[date] = mapped_column(Date, nullable=False)
@@ -38,5 +38,4 @@ class TrainingPlan(Base):
     )
 
     # Relacionamentos
-    user: Mapped["User"] = relationship("User", back_populates="training_plans")
     feedbacks: Mapped[list["TrainingFeedback"]] = relationship("TrainingFeedback", back_populates="plan")

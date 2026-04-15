@@ -39,7 +39,7 @@ class ProfileUpdate(BaseModel):
 
 class ProfileResponse(BaseModel):
     id: int
-    user_id: int
+    user_id: str
     name: str
     level: str
     weekly_volume_km: Optional[float]

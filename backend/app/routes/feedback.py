@@ -6,30 +6,28 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
-from ..main import limiter, _get_user_id_from_token
 from ..models.training_feedback import TrainingFeedback
 from ..models.training_plan import TrainingPlan
-from ..models.user import User
+from ..models.runner_profile import RunnerProfile
 from ..schemas.feedback import FeedbackCreate, FeedbackResponse
-from ..services import ai
-from ..services.deps import get_current_user
+from ..services import ai, memory_service
+from ..services.deps import get_current_user_id
 
 router = APIRouter()
 
 
 @router.post("", response_model=FeedbackResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("20/hour", key_func=_get_user_id_from_token)
 def submit_feedback(
     request: Request,
     body: FeedbackCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     # Valida ownership do plan_id, se fornecido
     if body.plan_id is not None:
         plan = db.query(TrainingPlan).filter(
             TrainingPlan.id == body.plan_id,
-            TrainingPlan.user_id == current_user.id,
+            TrainingPlan.user_id == current_user_id,
         ).first()
         if not plan:
             # Retorna 404 (não 403) para não confirmar existência do recurso
@@ -38,7 +36,7 @@ def submit_feedback(
                 detail="Planilha não encontrada",
             )
 
-    profile = current_user.profile
+    profile = db.query(RunnerProfile).filter(RunnerProfile.user_id == current_user_id).first()
 
     # Analisa feedback com a IA (falha silenciosa — não bloqueia o registro)
     analysis = None
@@ -65,7 +63,7 @@ def submit_feedback(
         )
 
     feedback = TrainingFeedback(
-        user_id=current_user.id,
+        user_id=current_user_id,
         plan_id=body.plan_id,
         training_date=body.training_date,
         effort_rating=body.effort_rating,
@@ -79,17 +77,29 @@ def submit_feedback(
     db.add(feedback)
     db.commit()
     db.refresh(feedback)
+
+    # Atualiza memória com o novo feedback
+    memory_service.update_after_feedback(
+        user_id=current_user_id,
+        effort=body.effort_rating,
+        pain=body.pain_level,
+        sleep=body.sleep_quality,
+        feeling=body.general_feeling,
+        recommendation=recommendation,
+        db=db,
+    )
+
     return feedback
 
 
 @router.get("", response_model=list[FeedbackResponse])
 def list_feedbacks(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     return (
         db.query(TrainingFeedback)
-        .filter(TrainingFeedback.user_id == current_user.id)
+        .filter(TrainingFeedback.user_id == current_user_id)
         .order_by(TrainingFeedback.training_date.desc())
         .limit(30)
         .all()
@@ -100,11 +110,11 @@ def list_feedbacks(
 def get_feedback(
     feedback_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     fb = db.query(TrainingFeedback).filter(
         TrainingFeedback.id == feedback_id,
-        TrainingFeedback.user_id == current_user.id,
+        TrainingFeedback.user_id == current_user_id,
     ).first()
     if not fb:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feedback não encontrado")

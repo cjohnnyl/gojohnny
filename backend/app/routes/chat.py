@@ -5,12 +5,11 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
-from ..main import limiter, _get_user_id_from_token
 from ..models.conversation import Conversation, Message
-from ..models.user import User
+from ..models.runner_profile import RunnerProfile
 from ..schemas.chat import ConversationResponse, MessageRequest, MessageResponse
-from ..services import ai
-from ..services.deps import get_current_user
+from ..services import ai, memory_service
+from ..services.deps import get_current_user_id
 
 router = APIRouter()
 
@@ -18,7 +17,7 @@ router = APIRouter()
 _HISTORY_LIMIT = 20
 
 
-def _get_or_create_conversation(db: Session, user_id: int, conversation_id: Optional[int]) -> Conversation:
+def _get_or_create_conversation(db: Session, user_id: str, conversation_id: Optional[int]) -> Conversation:
     if conversation_id:
         conv = db.query(Conversation).filter(
             Conversation.id == conversation_id,
@@ -39,9 +38,9 @@ async def send_message(
     request: Request,
     body: MessageRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user_id),
 ):
-    conv = _get_or_create_conversation(db, current_user.id, body.conversation_id)
+    conv = _get_or_create_conversation(db, current_user_id, body.conversation_id)
 
     # Busca histórico ANTES de qualquer escrita (conversa já existente)
     history = (
@@ -54,10 +53,13 @@ async def send_message(
     history_messages = [{"role": m.role, "content": m.content} for m in reversed(history)]
     history_messages.append({"role": "user", "content": body.content})
 
+    # Busca perfil do corredor e memória
+    profile = db.query(RunnerProfile).filter(RunnerProfile.user_id == current_user_id).first()
+    memory = memory_service.get_or_create_memory(current_user_id, db)
+
     # Chama a IA ANTES de escrever qualquer mensagem no banco
-    profile = current_user.profile
     try:
-        reply, tokens = ai.chat(history_messages, profile=profile)
+        reply, tokens = ai.chat(history_messages, profile=profile, memory=memory)
     except BadRequestError as e:
         logger.error(f"OpenAI {type(e).__name__} (status={getattr(e, 'status_code', 'N/A')})")
         raise HTTPException(
@@ -108,11 +110,11 @@ async def send_message(
 @router.get("/conversations", response_model=list[ConversationResponse])
 def list_conversations(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     return (
         db.query(Conversation)
-        .filter(Conversation.user_id == current_user.id)
+        .filter(Conversation.user_id == current_user_id)
         .order_by(Conversation.updated_at.desc())
         .all()
     )
@@ -122,11 +124,11 @@ def list_conversations(
 def get_messages(
     conversation_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     conv = db.query(Conversation).filter(
         Conversation.id == conversation_id,
-        Conversation.user_id == current_user.id,
+        Conversation.user_id == current_user_id,
     ).first()
     if not conv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversa não encontrada")
