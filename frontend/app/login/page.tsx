@@ -34,13 +34,15 @@ export default function LoginPage() {
         }
 
         // Verificar perfil — se não tiver, bot fará onboarding no chat
+        // setLoading(false) antes do push para garantir que o botão
+        // desbloqueie independentemente do comportamento da navegação
         try {
           await api.getProfile();
-          router.push("/chat");
         } catch {
           // Perfil não existe — o chat fará onboarding conversacional
-          router.push("/chat");
         }
+        setLoading(false);
+        router.push("/chat");
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Erro ao fazer login");
         setLoading(false);
