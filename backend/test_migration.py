@@ -119,11 +119,6 @@ except Exception as e:
 
 # Validação de config
 print("\n--- Validações de configuração ---")
-if not settings.supabase_jwt_secret:
-    print("⚠ SUPABASE_JWT_SECRET não configurado (esperado em desenvolvimento sem .env)")
-else:
-    print("✓ SUPABASE_JWT_SECRET configurado")
-
 if not settings.supabase_url:
     print("⚠ SUPABASE_URL não configurado")
 else:
@@ -139,8 +134,7 @@ print("✓ VALIDAÇÃO CONCLUÍDA COM SUCESSO")
 print("="*50)
 print("\nPróximos passos:")
 print("1. Configurar variáveis de ambiente em .env:")
-print("   - SUPABASE_JWT_SECRET")
-print("   - SUPABASE_URL")
+print("   - SUPABASE_URL  (autenticação via JWKS/RS256 — JWT Secret não é mais necessário)")
 print("   - OPENAI_API_KEY")
 print("2. Criar tabelas no banco (migrations com Alembic)")
 print("3. Testar endpoints com cliente autenticado Supabase")

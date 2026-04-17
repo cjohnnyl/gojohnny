@@ -14,25 +14,21 @@ settings = get_settings()
 
 def _get_user_id_from_token(request: Request) -> str:
     """Extrai user_id do JWT Supabase para usar como chave de rate limiting por usuário.
-    Cai de volta para o IP caso o token não esteja presente ou seja inválido.
+    Cai de volta para o IP caso o token não esteja presente, seja inválido ou o
+    JWKS não esteja disponível (falha silenciosa intencional — rate limit por IP).
     """
-    from .services.deps import get_current_user_id
-    from jose import jwt, JWTError
+    from .services.deps import _decode_jwt_with_jwks
+    from fastapi import HTTPException
 
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header[7:]
         try:
-            payload = jwt.decode(
-                token,
-                get_settings().supabase_jwt_secret,
-                algorithms=["HS256"],
-                options={"verify_aud": False},
-            )
+            payload = _decode_jwt_with_jwks(token)
             user_id = payload.get("sub")
             if user_id:
                 return f"user:{user_id}"
-        except (JWTError, Exception):
+        except (HTTPException, Exception):
             pass
     # fallback para IP
     return get_remote_address(request)

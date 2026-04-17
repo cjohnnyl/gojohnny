@@ -17,8 +17,7 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite:///./gojohnny.db"
 
-    # Supabase Auth (JWT)
-    supabase_jwt_secret: str = ""
+    # Supabase Auth (JWT via JWKS/RS256)
     supabase_url: str = ""
 
     # OpenAI
