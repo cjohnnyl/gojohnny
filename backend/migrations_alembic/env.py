@@ -4,6 +4,7 @@ import os
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy import text, inspect as sa_inspect
 from alembic import context
 
 # Adiciona o backend ao path
@@ -32,6 +33,33 @@ config.set_main_option("sqlalchemy.url", _db_url)
 target_metadata = Base.metadata
 
 
+def _maybe_stamp_existing_db(connection) -> None:
+    """
+    Se as tabelas existem mas alembic_version está vazia,
+    registra 0001 para que o Alembic pule para 0002.
+    Necessário quando o banco ficou em estado inconsistente.
+    """
+    try:
+        inspector = sa_inspect(connection)
+        tables = inspector.get_table_names(schema="public")
+
+        if "runner_profiles" not in tables:
+            return  # banco vazio — Alembic cuida normalmente
+
+        if "alembic_version" not in tables:
+            return  # Alembic cria a tabela durante a migration
+
+        result = connection.execute(text("SELECT version_num FROM alembic_version"))
+        if not result.fetchall():
+            connection.execute(
+                text("INSERT INTO alembic_version (version_num) VALUES ('0001')")
+            )
+            connection.commit()
+            print("[pre-migration] Banco estabilizado: registrado em 0001 (tabelas existiam sem versão)")
+    except Exception as exc:
+        print(f"[pre-migration] Verificação ignorada: {exc}")
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
@@ -55,6 +83,8 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        _maybe_stamp_existing_db(connection)   # ← estabiliza banco inconsistente antes de migrar
+
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
