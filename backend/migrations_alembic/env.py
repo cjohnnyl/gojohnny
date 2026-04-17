@@ -35,9 +35,8 @@ target_metadata = Base.metadata
 
 def _maybe_stamp_existing_db(connection) -> None:
     """
-    Se as tabelas existem mas alembic_version está vazia,
-    registra 0001 para que o Alembic pule para 0002.
-    Necessário quando o banco ficou em estado inconsistente.
+    Estabiliza banco em estado inconsistente (tabelas existem sem rastreamento Alembic).
+    Registra '0001' no alembic_version para que o Alembic pule direto para '0002'.
     """
     try:
         inspector = sa_inspect(connection)
@@ -46,16 +45,24 @@ def _maybe_stamp_existing_db(connection) -> None:
         if "runner_profiles" not in tables:
             return  # banco vazio — Alembic cuida normalmente
 
+        # Tabelas existem. Garantir que alembic_version existe e tem '0001'.
         if "alembic_version" not in tables:
-            return  # Alembic cria a tabela durante a migration
+            connection.execute(text(
+                "CREATE TABLE alembic_version "
+                "(version_num VARCHAR(32) NOT NULL "
+                "CONSTRAINT alembic_version_pkc PRIMARY KEY)"
+            ))
+            connection.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0001')"))
+            connection.commit()
+            print("[pre-migration] alembic_version criada e registrada em 0001")
+            return
 
         result = connection.execute(text("SELECT version_num FROM alembic_version"))
         if not result.fetchall():
-            connection.execute(
-                text("INSERT INTO alembic_version (version_num) VALUES ('0001')")
-            )
+            connection.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0001')"))
             connection.commit()
-            print("[pre-migration] Banco estabilizado: registrado em 0001 (tabelas existiam sem versão)")
+            print("[pre-migration] alembic_version vazia — registrada em 0001")
+
     except Exception as exc:
         print(f"[pre-migration] Verificação ignorada: {exc}")
 
