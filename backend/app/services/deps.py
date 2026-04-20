@@ -30,7 +30,7 @@ def _decode_jwt_with_jwks(token: str) -> dict:
         payload = pyjwt.decode(
             token,
             signing_key.key,
-            algorithms=["RS256"],
+            algorithms=["ES256"],
             options={"verify_aud": False},
         )
         return payload
