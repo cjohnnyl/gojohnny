@@ -46,13 +46,18 @@ Cria perfil inicial do corredor. Requer autenticação.
 ```json
 {
   "name": "João Silva",
-  "age": 28,
-  "gender": "M",
   "level": "intermediário",
   "weekly_volume_km": 30,
   "available_days_per_week": 4,
+  "preferred_days": "segunda, quarta, sexta",
   "comfortable_pace": "5:30",
   "main_goal": "Melhorar resistência",
+  "injury_history": "Sem lesões prévias",
+  "physical_limitations": "Nenhuma",
+  "location": "São Paulo, SP",
+  "extra_context": "Trabalho como desenvolvedor, treino no fim de semana",
+  "target_race_name": "Meia Maratona de SP",
+  "target_race_distance_km": 21.1,
   "target_race_date": "2026-06-15"
 }
 ```
@@ -63,15 +68,19 @@ Cria perfil inicial do corredor. Requer autenticação.
   "id": 1,
   "user_id": "550e8400-e29b-41d4-a716-446655440000",
   "name": "João Silva",
-  "age": 28,
-  "gender": "M",
   "level": "intermediário",
   "weekly_volume_km": 30,
   "available_days_per_week": 4,
+  "preferred_days": "segunda, quarta, sexta",
   "comfortable_pace": "5:30",
   "main_goal": "Melhorar resistência",
-  "target_race_date": "2026-06-15",
-  "created_at": "2026-04-20T10:30:00Z"
+  "injury_history": "Sem lesões prévias",
+  "physical_limitations": "Nenhuma",
+  "location": "São Paulo, SP",
+  "extra_context": "Trabalho como desenvolvedor, treino no fim de semana",
+  "target_race_name": "Meia Maratona de SP",
+  "target_race_distance_km": 21.1,
+  "target_race_date": "2026-06-15"
 }
 ```
 
@@ -87,14 +96,19 @@ Retorna perfil do usuário autenticado.
   "id": 1,
   "user_id": "550e8400-e29b-41d4-a716-446655440000",
   "name": "João Silva",
-  "age": 28,
   "level": "intermediário",
   "weekly_volume_km": 30,
   "available_days_per_week": 4,
+  "preferred_days": "segunda, quarta, sexta",
   "comfortable_pace": "5:30",
   "main_goal": "Melhorar resistência",
-  "target_race_date": "2026-06-15",
-  "created_at": "2026-04-20T10:30:00Z"
+  "injury_history": "Sem lesões prévias",
+  "physical_limitations": "Nenhuma",
+  "location": "São Paulo, SP",
+  "extra_context": "Trabalho como desenvolvedor, treino no fim de semana",
+  "target_race_name": "Meia Maratona de SP",
+  "target_race_distance_km": 21.1,
+  "target_race_date": "2026-06-15"
 }
 ```
 
@@ -240,7 +254,29 @@ Gera novo plano de treino para a semana atual baseado no perfil.
 ### GET `/plans/current`
 Retorna plano ativo da semana atual.
 
-**Response:** `200 OK` (mesmo formato de POST)
+**Response:** `200 OK`
+```json
+{
+  "id": 5,
+  "week_start": "2026-04-21",
+  "week_end": "2026-04-27",
+  "coach_notes": "Esta semana fokamos em recuperação após a prova de 5K.",
+  "plan": {
+    "segunda": {
+      "tipo": "recuperação",
+      "distancia": "6km",
+      "pace": "6:30-7:00",
+      "detalhes": "Trote leve, foco em recuperação"
+    },
+    "terça": {
+      "tipo": "intervalo",
+      "distancia": "8km",
+      "detalhes": "5x 800m em ritmo de prova + 400m recuperação"
+    }
+    // ... outros dias
+  }
+}
+```
 
 **Erros:**
 - `404 Not Found` - Nenhum plano ativo para esta semana
@@ -449,12 +485,18 @@ curl -X POST http://localhost:8000/profile \
   -H "Content-Type: application/json" \
   -d '{
     "name": "João Silva",
-    "age": 28,
     "level": "intermediário",
     "weekly_volume_km": 30,
     "available_days_per_week": 4,
+    "preferred_days": "segunda, quarta, sexta",
     "comfortable_pace": "5:30",
-    "main_goal": "Melhorar resistância",
+    "main_goal": "Melhorar resistência",
+    "injury_history": "Sem lesões prévias",
+    "physical_limitations": "Nenhuma",
+    "location": "São Paulo, SP",
+    "extra_context": "Trabalho como desenvolvedor",
+    "target_race_name": "Meia Maratona de SP",
+    "target_race_distance_km": 21.1,
     "target_race_date": "2026-06-15"
   }'
 ```

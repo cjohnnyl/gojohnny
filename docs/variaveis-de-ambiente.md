@@ -130,7 +130,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # API
 # Aponta para backend local
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ### Produção (Vercel)
@@ -141,7 +141,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://[seu-projeto].supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # API — aponta para backend em produção (Railway/Render)
-NEXT_PUBLIC_API_BASE_URL=https://gojohnny-api.railway.app
+NEXT_PUBLIC_API_URL=https://gojohnny-api.railway.app
 ```
 
 ---
@@ -166,7 +166,6 @@ NEXT_PUBLIC_API_BASE_URL=https://gojohnny-api.railway.app
 
 - Armazenar segredos em `1Password`, `Vault` ou `AWS Secrets Manager`
 - Usar variáveis de ambiente do provedor (Railway/Vercel) para dados sensíveis
-- Rotar `SUPABASE_JWT_SECRET` a cada 6 meses
 - Usar `.env.local` em dev (nunca commitar)
 - Adicionar `.env`, `.env.*.local` ao `.gitignore`
 

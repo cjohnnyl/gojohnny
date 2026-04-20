@@ -41,8 +41,8 @@ gojohnny/
 │   │       ├── memory_service.py # Gerenciamento de memória do corredor
 │   │       └── deps.py          # Dependências FastAPI (autenticação, etc)
 │   ├── migrations_alembic/      # Alembic migrations
-│   ├── tests/                   # Testes pytest
-│   └── requirements.txt         # Dependências Python
+│   └── tests/                   # Testes pytest
+├── requirements.txt             # Dependências Python
 ├── frontend/
 │   ├── app/
 │   │   ├── page.tsx             # Home

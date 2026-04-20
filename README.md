@@ -77,6 +77,8 @@ http://localhost:8000/docs
 
 ## Documentação
 
+- [API Endpoints](docs/api.md)
+- [Variáveis de Ambiente](docs/variaveis-de-ambiente.md)
 - [Arquitetura inicial](docs/arquitetura-inicial.md)
 - [Banco de dados](docs/banco-de-dados.md)
 - [Estratégia de deploy](docs/deploy.md)
