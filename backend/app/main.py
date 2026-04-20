@@ -13,24 +13,21 @@ settings = get_settings()
 
 
 def _get_user_id_from_token(request: Request) -> str:
-    """Extrai user_id do JWT Supabase para usar como chave de rate limiting por usuário.
-    Cai de volta para o IP caso o token não esteja presente, seja inválido ou o
-    JWKS não esteja disponível (falha silenciosa intencional — rate limit por IP).
+    """Extrai user_id do JWT para rate limiting. Decodifica sem validar (só para chave de limite).
+    Cai de volta para o IP caso o token não esteja presente ou malformado.
     """
-    from .services.deps import _decode_jwt_with_jwks
-    from fastapi import HTTPException
-
+    import base64, json
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
-        token = auth_header[7:]
         try:
-            payload = _decode_jwt_with_jwks(token)
+            payload_b64 = auth_header[7:].split(".")[1]
+            padding = 4 - len(payload_b64) % 4
+            payload = json.loads(base64.b64decode(payload_b64 + "=" * padding))
             user_id = payload.get("sub")
             if user_id:
                 return f"user:{user_id}"
-        except (HTTPException, Exception):
+        except Exception:
             pass
-    # fallback para IP
     return get_remote_address(request)
 
 
@@ -42,8 +39,8 @@ async def lifespan(app: FastAPI):
     logger.info(f"Iniciando {settings.app_name} v{settings.app_version} [{settings.app_env}]")
     # Cria tabelas no banco (dev). Em produção, use Alembic migrations.
     if settings.app_env == "development":
-        from .core.database import engine, Base
-        Base.metadata.create_all(bind=engine)
+        from .core.database import get_engine, Base
+        Base.metadata.create_all(bind=get_engine())
         logger.info("Tabelas verificadas/criadas (modo desenvolvimento)")
     yield
     logger.info("Encerrando aplicação")
