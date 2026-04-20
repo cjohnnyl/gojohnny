@@ -1,42 +1,48 @@
 """Dependências compartilhadas do FastAPI."""
-from functools import lru_cache
-
+import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
-from supabase import Client, create_client
 
 from ..core.config import get_settings
 
 bearer = HTTPBearer()
 
 
-@lru_cache(maxsize=1)
-def _get_supabase_client() -> Client:
-    settings = get_settings()
-    if not settings.supabase_url or not settings.supabase_anon_key:
-        raise RuntimeError("SUPABASE_URL ou SUPABASE_ANON_KEY não configuradas")
-    return create_client(settings.supabase_url, settings.supabase_anon_key)
-
-
 async def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(bearer),
 ) -> str:
     token = credentials.credentials
+    settings = get_settings()
+
+    url = f"{settings.supabase_url}/auth/v1/user"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "apikey": settings.supabase_anon_key,
+    }
+
     try:
-        client = _get_supabase_client()
-        response = client.auth.get_user(token)
-        if response.user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token inválido",
-            )
-        return response.user.id
-    except HTTPException:
-        raise
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(url, headers=headers)
     except Exception as exc:
-        logger.warning(f"Falha ao validar token: {type(exc).__name__}: {exc}")
+        logger.error(f"Falha ao contatar Supabase Auth: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço de autenticação indisponível",
+        )
+
+    if response.status_code != 200:
+        logger.warning(f"Supabase Auth rejeitou token: HTTP {response.status_code}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido",
         )
+
+    user_id: str | None = response.json().get("id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido: identificador de usuário ausente",
+        )
+
+    return user_id
