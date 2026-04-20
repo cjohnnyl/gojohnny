@@ -14,7 +14,7 @@ pydantic[email]==2.10.6
 python-dotenv==1.0.1
 
 # Autenticação
-PyJWT[crypto]>=2.8.0
+supabase>=2.0.0
 bcrypt==4.2.1
 python-multipart==0.0.12
 
