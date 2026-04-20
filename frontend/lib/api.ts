@@ -12,7 +12,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 
   try {
     const supabase = createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.refreshSession();
     const token = session?.access_token;
     return token ? { Authorization: `Bearer ${token}` } : {};
   } catch {
