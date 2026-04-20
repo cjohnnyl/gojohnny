@@ -22,13 +22,16 @@ GoJohnny é um chatbot especialista em corrida que funciona como um treinador pe
 - **Backend:** Python 3.11+ + FastAPI
 - **Banco:** SQLite (dev) → PostgreSQL (prod)
 - **ORM:** SQLAlchemy 2.x + Alembic
-- **Auth:** JWT (python-jose + passlib)
-- **IA:** Anthropic Claude API
-- **Hosting:** Railway
+- **Auth:** Supabase Auth (JWKS/RS256)
+- **IA:** OpenAI GPT (gpt-4o-mini / gpt-4o)
+- **Frontend:** Next.js 15 + React 19 + Tailwind CSS
+- **Hosting:** Railway (backend) / Vercel (frontend)
 
 ---
 
 ## Setup local
+
+### Backend
 
 ```bash
 # 1. Clonar o repositório
@@ -41,18 +44,34 @@ python -m venv .venv
 # source .venv/bin/activate  # Linux/Mac
 
 # 3. Instalar dependências
-pip install -r backend/requirements.txt
+pip install -r requirements.txt
 
 # 4. Configurar variáveis de ambiente
 cp .env.example .env
-# Edite .env com suas chaves (ANTHROPIC_API_KEY e JWT_SECRET_KEY são obrigatórias)
+# Edite .env com suas chaves (OPENAI_API_KEY e SUPABASE_URL são obrigatórias)
 
-# 5. Rodar
-cd backend
-uvicorn app.main:app --reload --port 8000
+# 5. Rodar backend
+uvicorn backend.app.main:app --reload --port 8000
 ```
 
-Acesse a documentação interativa: http://localhost:8000/docs
+### Frontend
+
+```bash
+# 1. Navegar para frontend
+cd frontend
+
+# 2. Instalar dependências
+npm install
+
+# 3. Variáveis de ambiente estão no .env.example na raiz (NEXT_PUBLIC_*)
+
+# 4. Rodar frontend
+npm run dev
+# Acesse em http://localhost:3000
+```
+
+### Documentação interativa (desenvolvimento apenas)
+http://localhost:8000/docs
 
 ---
 
@@ -73,4 +92,4 @@ Em situações de dor forte ou sinais de risco, orienta o usuário a buscar aten
 
 ## Status
 
-MVP em desenvolvimento. Interface atual: API REST com Swagger UI.
+Produção: Backend em Railway + Frontend em Vercel. Auth via Supabase, IA via OpenAI.

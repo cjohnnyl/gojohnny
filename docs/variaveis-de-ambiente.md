@@ -29,9 +29,12 @@ APP_DEBUG=true
 DATABASE_URL=sqlite:///./gojohnny.db
 
 # Supabase Auth (JWT validation)
-# Obter em: https://app.supabase.com → Settings > API > JWT Secret
-SUPABASE_JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# Obter em: https://app.supabase.com → Settings > API > Project URL
 SUPABASE_URL=https://[seu-projeto].supabase.co
+
+# Supabase Anon Key (para frontend)
+# Obter em: https://app.supabase.com → Settings > API > Anon Key
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # OpenAI
 # Obter em: https://platform.openai.com/account/api-keys
@@ -62,8 +65,8 @@ APP_DEBUG=false
 DATABASE_URL=postgresql://user:pass@staging-db.railway.app:5432/gojohnny_staging
 
 # Supabase Auth
-SUPABASE_JWT_SECRET=<JWT secret da instância staging>
 SUPABASE_URL=https://[seu-projeto-staging].supabase.co
+SUPABASE_ANON_KEY=<anon key da instância staging>
 
 # OpenAI — pode usar modelo menor em staging para economizar
 OPENAI_API_KEY=sk-proj-...
@@ -89,14 +92,13 @@ APP_NAME=GoJohnny
 APP_VERSION=0.1.0
 APP_DEBUG=false
 
-# Database — PostgreSQL em Railway/Render
+# Database — PostgreSQL em Railway
 # Railway injeta automaticamente: DATABASE_URL
-# Se usar Render: DATABASE_URL=postgresql://user:pass@prod-db.render.com:5432/gojohnny
-DATABASE_URL=postgresql://user:pass@host:5432/gojohnny
+DATABASE_URL=postgresql://user:pass@prod-db.railway.app:5432/gojohnny
 
-# Supabase Auth — CRÍTICO: usar secret correto da instância produção
-SUPABASE_JWT_SECRET=<JWT Secret da instância produção — NUNCA usar staging aqui>
+# Supabase Auth
 SUPABASE_URL=https://[seu-projeto].supabase.co
+SUPABASE_ANON_KEY=<anon key da instância produção>
 
 # OpenAI — use modelos recomendados
 OPENAI_API_KEY=sk-proj-...
@@ -150,12 +152,11 @@ NEXT_PUBLIC_API_BASE_URL=https://gojohnny-api.railway.app
 
 | Variável | Fonte | Ambiente | Exemplo |
 |----------|-------|----------|---------|
-| `SUPABASE_JWT_SECRET` | Supabase Console → Settings > API > JWT Secret | Todos | `eyJhbGc...` |
 | `SUPABASE_URL` | Supabase Console → Settings > API > Project URL | Todos | `https://abc.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Console → Settings > API > Anon Key | Todos | `eyJhbGc...` |
+| `SUPABASE_ANON_KEY` | Supabase Console → Settings > API > Anon Key | Todos | `eyJhbGc...` |
 | `OPENAI_API_KEY` | OpenAI Platform → API Keys | Todos | `sk-proj-...` |
 | `DATABASE_URL` | Railway Console ou `.env.local` | Dev/Prod | `postgresql://...` ou `sqlite:///...` |
-| `NEXT_PUBLIC_API_BASE_URL` | Manual (URL do backend) | Dev/Prod | `http://localhost:8000` ou `https://...railway.app` |
+| `NEXT_PUBLIC_API_URL` | Manual (URL do backend) | Dev/Prod | `http://localhost:8000` ou `https://...railway.app` |
 
 ---
 
@@ -202,14 +203,15 @@ http://localhost:8000/docs
 
 ## Troubleshooting
 
-### 500 - SUPABASE_JWT_SECRET incorreto
-- Verificar se copiou o Secret completo em Settings > API > JWT Secret
-- Não misturar secret de dev com produção
+### 401 - Token JWT inválido ou expirado
+- JWT pode estar expirado (padrão: 1 hora)
+- Refresh token pode estar expirado (padrão: 30 dias)
+- Frontend precisa renovar token automaticamente (Supabase SDK faz isso)
+- Verificar se `SUPABASE_URL` está correto
 
-### 401 - Token JWT inválido
-- JWT pode estar expirado (60 min de TTL)
-- Refresh token pode estar expirado (30 dias)
-- Frontend precisa renovar token automaticamente
+### 500 - Erro de autenticação
+- Verificar se `SUPABASE_URL` está correto em Settings > API > Project URL
+- Verificar se `SUPABASE_ANON_KEY` está correto em Settings > API > Anon Key
 
 ### CORS error ao chamar backend
 - Verificar `ALLOWED_ORIGINS` no backend (deve incluir URL do frontend)
